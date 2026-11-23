@@ -201,6 +201,14 @@
 - **Fix:** add it, ideally with `contents: read`.
 - **Takeaway:** default `GITHUB_TOKEN` permissions don't allow requesting an OIDC token.
 
+### 21. Works on `main` but fails with an environment
+
+- **Lesson:** [14 — OIDC](14-oidc.md)
+- **Symptom:** STS rejects the request (attribute condition / Permission denied) even though the setup works on a branch.
+- **Cause:** when a job uses `environment:`, `sub` changes to `repo:OWNER/REPO:environment:NAME` instead of the branch form, so it no longer matches the trust policy.
+- **Fix:** print the claims in the inspect job, then adjust the condition to match the actual `sub` or `environment`.
+- **Takeaway:** write the trust policy against what the token actually carries, so read the claims before writing the condition.
+
 ---
 
 ## 🧑‍💻 My own problems
