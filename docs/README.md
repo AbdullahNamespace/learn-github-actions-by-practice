@@ -150,7 +150,7 @@ learn-github-actions-by-practice/
 
 **🏆 Production**
 
-- [ ] **14** — OIDC: keyless authentication to Google Cloud
+- [x] **14** — OIDC: keyless cloud authentication (Google Cloud as the example)
 - [ ] **15** — Release & Docker
 
 ---

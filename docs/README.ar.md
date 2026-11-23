@@ -150,7 +150,7 @@ learn-github-actions-by-practice/
 
 **🏆 الإنتاج**
 
-- [ ] **14** — OIDC: دخول Google Cloud بلا مفاتيح
+- [x] **14** — OIDC: دخول سحابي بلا مفاتيح (Google Cloud مثالاً)
 - [ ] **15** — Release و Docker
 
 ---

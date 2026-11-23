@@ -1,0 +1,67 @@
+# ═══════════════════════════════════════════════════════════
+# 🔑 14 — OIDC (دخول سحابي بلا مفاتيح — مثال: Google Cloud)
+# Lesson / الدرس: docs/14-oidc.md · docs/14-oidc.ar.md
+# Concepts: id-token: write · OIDC claims · Workload Identity Federation
+# ───────────────────────────────────────────────────────────
+# Variables (للجزء الثاني فقط):
+#   GCP_WORKLOAD_IDENTITY_PROVIDER  projects/<NUM>/locations/global/workloadIdentityPools/<POOL>/providers/<PROVIDER>
+#   GCP_SERVICE_ACCOUNT             <name>@<project>.iam.gserviceaccount.com
+#   FIREBASE_PROJECT_ID
+# لا يوجد أي Secret هنا — هذا هو المقصود.
+# ═══════════════════════════════════════════════════════════
+name: 14 · OIDC
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # بدونها: Unable to get ACTIONS_ID_TOKEN_REQUEST_URL
+
+jobs:
+  # ── 1) اعرض ما يحتويه توكن OIDC (لا يحتاج أي إعداد سحابي) ──
+  inspect-token:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: 🔍 اطلب التوكن وافحص الـ claims
+        run: |
+          # audience=github-actions-demo قيمة تجريبية؛ كل مزود يتوقع قيمته (AWS: sts.amazonaws.com)
+          TOKEN=$(curl -sS \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=github-actions-demo" | jq -r .value)
+          echo "::add-mask::$TOKEN"
+          # نطبع الـ payload فقط (آمن). لا تطبع $TOKEN كاملاً أبداً: صالح حتى انتهاء صلاحيته
+          echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+' \
+            | jq -R '@base64d | fromjson | {iss, aud, sub, repository, ref, workflow, job_workflow_ref, environment, actor}'
+
+  # ── 2) نشر Firebase بهوية قصيرة العمر بدل مفتاح JSON ──
+  deploy-oidc:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v7 # يجب أن يسبق auth (ولازم للـ action المحلي)
+
+      - name: 🔐 Authenticate (OIDC → Google Cloud)
+        uses: google-github-actions/auth@v3 # يكتب ملف الاعتماد ويدير حذفه
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+      - name: ✅ تحقق من الهوية
+        run: gcloud auth list # يجب أن يظهر الـ service account كحساب نشط
+
+      - name: 🧱 تجهيز موقع ثابت
+        run: |
+          mkdir -p site
+          echo '<!doctype html><meta charset="utf-8"><h1>🔑 Deployed with OIDC</h1>' > site/index.html
+
+      # service-account فارغ ← الـ action يستخدم الاعتماد الذي ضبطته auth
+      - name: 🚀 Deploy (بلا مفتاح)
+        uses: ./.github/actions/deploy-firebase-hosting
+        with:
+          project-id: ${{ vars.FIREBASE_PROJECT_ID }}
+          public-dir: site
